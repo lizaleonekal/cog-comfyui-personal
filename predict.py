@@ -103,6 +103,10 @@ class Predictor(BasePredictor):
             description="Input image, tar or zip file. Read guidance on workflows and input files here: https://github.com/fofr/cog-comfyui. Alternatively, you can replace inputs with URLs in your JSON workflow and the model will download them.",
             default=None,
         ),
+        custom_lora_url: str = Input(
+            description="URL to a custom LoRA file to be downloaded.",
+            default=None,
+        ),
         return_temp_files: bool = Input(
             description="Return any temporary files, such as preprocessed controlnet images. Useful for debugging.",
             default=False,
@@ -120,6 +124,25 @@ class Predictor(BasePredictor):
     ) -> List[Path]:
         """Run a single prediction on the model"""
         self.comfyUI.cleanup(ALL_DIRECTORIES)
+
+        if custom_lora_url:
+            downloader = WeightsDownloader()
+            local_filename = os.path.basename(custom_lora_url.split('?')[0])
+            
+            # Create a separate weights map just for this download
+            custom_weights_map = {
+                local_filename: {
+                    "url": custom_lora_url,
+                    "dest": "ComfyUI/models/loras/"
+                }
+            }
+            
+            # Download using the isolated weights map
+            downloader.download_if_not_exists(
+                local_filename,
+                custom_weights_map[local_filename]["url"],
+                custom_weights_map[local_filename]["dest"]
+            )
 
         if input_file:
             self.handle_input_file(input_file)
